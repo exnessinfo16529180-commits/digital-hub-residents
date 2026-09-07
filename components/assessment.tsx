@@ -24,19 +24,20 @@ export default function Assessment({collectionReady}:{collectionReady:boolean}) 
  const [direction, setDirection] = useState(1);
  const [done, setDone] = useState(false);
  const title = useRef<HTMLHeadingElement>(null);
+ const questionStage = useRef<HTMLDivElement>(null);
  const pendingAdvance = useRef<ReturnType<typeof setTimeout> | null>(null);
  const reduceMotion = useReducedMotion();
  const q = questions[step];
  const count = Object.keys(answers).length;
  const result = done ? calculate(answers) : null;
- useEffect(() => { title.current?.focus(); }, [step, done, started]);
+ useEffect(() => { title.current?.focus({preventScroll:true}); }, [step, done, started]);
  useEffect(() => () => { if(pendingAdvance.current) clearTimeout(pendingAdvance.current); }, []);
  function updateCandidate(key:'name'|'group'|'email',value:string){submissionId.current='';setCandidate(previous=>({...previous,[key]:value}));}
  function move(next: number) {
   if(pendingAdvance.current){clearTimeout(pendingAdvance.current);pendingAdvance.current=null;}
   setDirection(next >= step ? 1 : -1);
   setStep(next);
-  window.scrollTo({ top: 0, behavior: 'instant' });
+  requestAnimationFrame(()=>questionStage.current?.scrollIntoView({block:'start',behavior:'instant'}));
  }
  function chooseAnswer(value:string){
   const nextAnswers={...answers,[q.id]:Number(value)};
@@ -75,7 +76,7 @@ export default function Assessment({collectionReady}:{collectionReady:boolean}) 
  {!done ? <>
  <aside className="intro"><div className="eyebrow">ЗНАКОМСТВО С DIGITAL HUB</div><h1>Большие идеи. <br/>Разные люди.<br/><em>Твоё место в команде.</em></h1><p>Расскажи, как ты учишься, работаешь с людьми и воплощаешь идеи. В конце — твой профиль и роли, которые стоит попробовать.</p><div className="meta"><span><Clock3 size={16}/> 7–10 минут</span><span>30 вопросов</span></div><ol className="section-list">{sections.map((s,i)=><li key={s} className={q.section===i?'active':q.section>i?'complete':''}><span>{q.section>i?<Check size={16}/>:String(i+1).padStart(2,'0')}</span>{s}{q.section===i && <span className="current-dot"/>}</li>)}</ol><div className="gentle-note"><Leaf size={20}/><p>Здесь нет идеальных ответов.<br/>Ориентируйся на последние 2–3 месяца.</p></div></aside>
  <section className="question-area" aria-label="Опросник"><button className="back-button" type="button" onClick={()=>setStarted(false)}>← Мои данные</button><div className="progress-top"><span>{sections[q.section]}</span><span>{count} / {questions.length}</span></div><Progress value={count/questions.length*100} aria-label="Прогресс опросника"/>
- <div className="question-stage"><AnimatePresence mode="popLayout" initial={false} custom={direction}>
+ <div className="question-stage" ref={questionStage}><AnimatePresence mode="popLayout" initial={false} custom={direction}>
  <motion.form key={q.id} className="question-card question-card-dark" custom={direction} initial={reduceMotion?false:{opacity:0,x:direction>0?110:-110,y:24,rotate:direction>0?3:-3,scale:.96}} animate={{opacity:1,x:0,y:0,rotate:0,scale:1}} exit={reduceMotion?{opacity:0}:{opacity:0,x:direction>0?-130:130,y:-12,rotate:direction>0?-4:4,scale:.94}} transition={{duration:reduceMotion ? .12 : .48,ease:[.22,1,.36,1]}} onSubmit={e=>{e.preventDefault(); if(pendingAdvance.current){clearTimeout(pendingAdvance.current);pendingAdvance.current=null;} if(answers[q.id]===undefined)return; if(step===questions.length-1){setDone(true);window.scrollTo(0,0);void sendResult();}else move(step+1);}}>
  <div className="question-kicker"><span>ВОПРОС {String(step+1).padStart(2,'0')}</span><span>{q.options?'Выбери один вариант':'Как это похоже на тебя?'}</span></div>
  <h2 ref={title} tabIndex={-1} id="question-title">{q.text}</h2><p className="question-hint">{q.hint || 'Выбери ответ, который ближе к тому, как ты обычно поступаешь.'}</p>

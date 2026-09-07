@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { calculate, questions, scales, type Answers } from '../lib/assessment.ts';
+const fixture=(n:number):Answers=>Object.fromEntries(questions.map(q=>[q.id,q.options?0:q.reverse?4-n:n]));
+test('30 unique questions, three items for each scale',()=>{assert.equal(questions.length,30);assert.equal(new Set(questions.map(q=>q.id)).size,30);for(const s of scales)assert.equal(questions.filter(q=>q.scale===s.key).length,3);});
+for(const [answer,expected] of [[0,0],[2,50],[4,100]])test(`normalized endpoints and reverse coding: ${expected}`,()=>{assert.deepEqual(Object.values(calculate(fixture(answer)).scores),Array(8).fill(expected));});
+test('reject incomplete, fractional and out-of-range input',()=>{assert.throws(()=>calculate({}));for(const value of [-1,5,1.5,NaN])assert.throws(()=>calculate({...fixture(2),q1:value}));assert.throws(()=>calculate({...fixture(2),hours:6}));});
+test('changing one answer updates only its scale',()=>{const a=fixture(2);const b=calculate({...a,q1:4});assert.equal(b.scores.motivation,67);assert.equal(b.scores.teamwork,50);});
+test('time and preferences never increase quality scores',()=>{const a=calculate(fixture(2));const b=calculate({...fixture(2),hours:5,commitment:3,team:3,style:3});assert.deepEqual(a.scores,b.scores);assert.match(a.capacity,/наблюдения/);assert.match(b.capacity,/рабочие блоки/);});
+test('coordinator recommendation respects preferred team format',()=>{assert.ok(calculate(fixture(4)).roles.every(r=>r.title!=='Координатор'));assert.ok(calculate({...fixture(4),team:3}).roles.some(r=>r.title==='Координатор'));});
+test('all weekly-time and commitment combinations produce usable profiles',()=>{for(let hours=0;hours<6;hours++)for(let commitment=0;commitment<4;commitment++){const r=calculate({...fixture(2),hours,commitment});assert.ok(r.capacity.length>30);assert.equal(r.roles.length,2);assert.equal(r.tips.length,3);}});
